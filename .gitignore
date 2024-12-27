@@ -1,0 +1,6 @@
+data
+*.pth
+*.pyc
+models
+secret.py
+*.pt
