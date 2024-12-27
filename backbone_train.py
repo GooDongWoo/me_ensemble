@@ -8,6 +8,7 @@ from tqdm import tqdm
 import time
 from torch.utils.tensorboard import SummaryWriter
 from Dloaders import Dloaders
+import os
 
 IMG_SIZE = 224
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -15,7 +16,7 @@ dataset_name = {'cifar10':datasets.CIFAR10, 'cifar100':datasets.CIFAR100,'imagen
 dataset_outdim = {'cifar10':10, 'cifar100':100,'imagenet':1000}
 ##############################################################
 batch_size = 32
-data_choice='cifar10'
+data_choice='cifar100'
 model_choice = 'resnet' # ['vit', 'resnet']
 isload=False
 max_epochs = 100  # Set your max epochs
@@ -28,6 +29,7 @@ early_stop_counter = 0
 best_val_accuracy = 0.0
 
 backbone_path=f'models/{model_choice}/{data_choice}/{model_choice}_{data_choice}_backbone.pth'
+os.makedirs(os.path.dirname(backbone_path), exist_ok=True)
 ##############################################################
 dloaders=Dloaders(data_choice=data_choice,batch_size=batch_size,IMG_SIZE=IMG_SIZE)
 train_loader,test_loader = dloaders.get_loaders()
@@ -43,7 +45,7 @@ elif model_choice == 'vit':
     model.heads.head = nn.Linear(model.heads.head.in_features, dataset_outdim[data_choice])
     model = model.to(device)
 
-#load model
+#load model #NOTE deprecated, don't use
 if isload:
     model.load_state_dict(torch.load(f'{model_choice}_{data_choice}_backbone.pth'))
     print('model loaded')

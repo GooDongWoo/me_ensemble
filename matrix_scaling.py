@@ -52,10 +52,10 @@ if __name__=='__main__':
     data_choice='imagenet'
     model_choice='resnet' #vit or resnet
     mevit_isload=True
-    mevit_pretrained_path=f'models/{data_choice}/integrated_ee.pth'
+    mevit_pretrained_path=f'models/{model_choice}/{data_choice}/integrated_ee.pth'
     max_epochs = 500  # Set your max epochs
 
-    backbone_path=f'models/{data_choice}/vit_{data_choice}_backbone.pth'
+    backbone_path=f'models/{model_choice}/{data_choice}/{model_choice}_{data_choice}_backbone.pth'
     start_lr=1e-3
     weight_decay=1e-2
 

@@ -13,9 +13,10 @@ dataset_outdim = {'cifar10':10, 'cifar100':100,'imagenet':1000}
 ################ 0. Hyperparameters ##########################
 batch_size = 1024
 data_choice = 'cifar10'
-mevit_pretrained_path=f'models/{data_choice}/integrated_ee.pth'
+model_choice = 'resnet'  # ['vit', 'resnet']
+mevit_pretrained_path=f'models/{model_choice}/{data_choice}/integrated_ee.pth'
 
-backbone_path = f'models/{data_choice}/vit_{data_choice}_backbone.pth'
+backbone_path = f'models/{model_choice}/{data_choice}/{model_choice}_{data_choice}_backbone.pth'
 ee_list = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]  # exit list ex) [0,1,2,3,4,5,6,7,8,9]
 exit_loss_weights = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]  # exit마다 가중치
 

@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from torchvision import models
 
 class BasicBlock(nn.Module):
     expansion = 1
@@ -131,9 +132,11 @@ class ResNetBranchExit(nn.Module):
         return self.classifier(x)
 
 class MultiExitResNet(nn.Module):
-    def __init__(self, base_model, ee_list=[18, 36, 54, 72, 90], 
-                 exit_loss_weights=[1,1,1,1,1,1], num_classes=1000, 
-                 data_shape=[3,3,224,224]):
+    def __init__(self,base_model=models.resnet101(),
+                ee_list=[12, 21, 30, 39, 48, 57, 66, 75, 84, 93],
+                exit_loss_weights=[1,1,1,1,1,1,1,1,1,1,1],  # 10개의 early exit + 1개의 final exit = 11개
+                num_classes=1000,
+                data_shape=[3,3,224,224]):
         super(MultiExitResNet, self).__init__()
         assert len(ee_list) + 1 == len(exit_loss_weights), 'len(ee_list)+1==len(exit_loss_weights) should be True'
         
@@ -158,14 +161,14 @@ class MultiExitResNet(nn.Module):
         self.end_layers = nn.Sequential(
             base_model.avgpool,
             nn.Flatten(),
-            nn.Linear(base_model.fc.in_features, num_classes)
+            base_model.fc
         )
         
         # Multiple Exit configuration
         self.exit_loss_weights = [elw/sum(exit_loss_weights) for elw in exit_loss_weights]
         self.ee_list = ee_list
         self.exit_num = len(ee_list) + 1
-        self.exits = nn.ModuleList()
+        self.ees = nn.ModuleList()
         self._build_exits()
         
         self.each_ee_test_mode = False
@@ -184,7 +187,7 @@ class MultiExitResNet(nn.Module):
                     eidx += 1
             
             for shape in previous_shapes:
-                self.exits.append(ResNetBranchExit(shape, self.num_classes))
+                self.ees.append(ResNetBranchExit(shape, self.num_classes))
 
     def getELW(self):
         if self.exit_loss_weights is None:
@@ -214,7 +217,7 @@ class MultiExitResNet(nn.Module):
             for idx, module in enumerate(self.backbone):
                 features = module(features)
                 if idx + 1 == (self.ee_list[target_exit]//3):
-                    return self.exits[target_exit](features)
+                    return self.ees[target_exit](features)
 
     def forward(self, x):
         if self.each_ee_test_mode:
@@ -227,7 +230,7 @@ class MultiExitResNet(nn.Module):
         for idx, module in enumerate(self.backbone):
             features = module(features)
             if eidx < self.exit_num-1 and idx+1 == (self.ee_list[eidx]//3):
-                outputs.append(self.exits[eidx](features))
+                outputs.append(self.ees[eidx](features))
                 eidx += 1
 
         outputs.append(self.end_layers(features))

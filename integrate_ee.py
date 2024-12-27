@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 from torchvision import datasets,models
 from me_train import MultiExitViT
+from me_ResNet import *
 from collections import OrderedDict
 
 
@@ -16,29 +17,36 @@ unfreeze_ees_list=[0,1,2,3,4,5,6,7,8,9]
 data_choice='imagenet'
 model_choice = 'resnet' # ['vit', 'resnet']
 # Path to the saved model
-ee0_path=f'models/{data_choice}/0/best_model.pth'
-ee1_path=f'models/{data_choice}/1/best_model.pth'
-ee2_path=f'models/{data_choice}/2/best_model.pth'
-ee3_path=f'models/{data_choice}/3/best_model.pth'
-ee4_path=f'models/{data_choice}/4/best_model.pth'
-ee5_path=f'models/{data_choice}/5/best_model.pth'
-ee6_path=f'models/{data_choice}/6/best_model.pth'
-ee7_path=f'models/{data_choice}/7/best_model.pth'
-ee8_path=f'models/{data_choice}/8/best_model.pth'
-ee9_path=f'models/{data_choice}/9/best_model.pth'
+ee0_path=f'models/{model_choice}/{data_choice}/0/best_model.pth'
+ee1_path=f'models/{model_choice}/{data_choice}/1/best_model.pth'
+ee2_path=f'models/{model_choice}/{data_choice}/2/best_model.pth'
+ee3_path=f'models/{model_choice}/{data_choice}/3/best_model.pth'
+ee4_path=f'models/{model_choice}/{data_choice}/4/best_model.pth'
+ee5_path=f'models/{model_choice}/{data_choice}/5/best_model.pth'
+ee6_path=f'models/{model_choice}/{data_choice}/6/best_model.pth'
+ee7_path=f'models/{model_choice}/{data_choice}/7/best_model.pth'
+ee8_path=f'models/{model_choice}/{data_choice}/8/best_model.pth'
+ee9_path=f'models/{model_choice}/{data_choice}/9/best_model.pth'
 ##############################################################
-# Load the pretrained ViT model from the saved file
-pretrained_vit = models.vit_b_16(weights=None)
-pretrained_vit.heads.head = nn.Linear(pretrained_vit.heads.head.in_features, dataset_outdim[data_choice])  # Ensure output matches the number of classes
-
+if model_choice == 'vit':
+    # Load the pretrained ViT model from the saved file
+    ptd_model = models.vit_b_16(weights=None)
+    ptd_model.heads.head = nn.Linear(ptd_model.heads.head.in_features, dataset_outdim[data_choice])  # Ensure output matches the number of classes
+elif model_choice == 'resnet':
+    # Load the pretrained ResNet model from the saved file
+    ptd_model = models.resnet101()
+    ptd_model.fc = nn.Linear(ptd_model.fc.in_features, dataset_outdim[data_choice])
 # Load model weights
 ##############################################################
-base_model = MultiExitViT(base_model=pretrained_vit,num_classes=dataset_outdim[data_choice])
+if model_choice == 'vit':
+    new_model = MultiExitViT(base_model=ptd_model,num_classes=dataset_outdim[data_choice])
+elif model_choice == 'resnet':
+    new_model = MultiExitResNet(base_model=ptd_model,num_classes=dataset_outdim[data_choice])
 ##############################################################
 paths=[ee0_path,ee1_path,ee2_path,ee3_path,ee4_path,ee5_path,ee6_path,ee7_path,ee8_path,ee9_path]
 ##############################################################
 checkpoint = torch.load(paths[0])['model_state_dict']
-base_model.load_state_dict(checkpoint,strict=True)
+new_model.load_state_dict(checkpoint,strict=True)
 ##############################################################
 for i in range(1,10):
     checkpoint = torch.load(paths[i])['model_state_dict']
@@ -51,8 +59,8 @@ for i in range(1,10):
 
     # 3. 기존 모델에 부분적으로 적용
     # strict=False로 하여 일부 파라미터만 로드하도록 설정합니다.
-    base_model.load_state_dict(partial_state_dict,strict=False)
+    new_model.load_state_dict(partial_state_dict,strict=False)
 
 ##############################################################
 # Save the model
-torch.save(base_model.state_dict(), f'models/{model_choice}/{data_choice}/integrated_ee.pth')
+torch.save(new_model.state_dict(), f'models/{model_choice}/{data_choice}/integrated_ee.pth')
