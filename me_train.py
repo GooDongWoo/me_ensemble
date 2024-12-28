@@ -26,9 +26,9 @@ dataset_outdim = {'cifar10': 10,'cifar100': 100,'imagenet': 1000}
 # Configuration Parameters
 # -----------------------------------------------------------------------------
 # Model and training setup
-unfreeze_ees_list = [0, 1, 2, 3, 4, 5, 6, 7, 8]  # List of exit layers to unfreeze
+unfreeze_ees_list = [9]  # List of exit layers to unfreeze
 batch_size = 1024
-data_choice = 'cifar10'  # Options: 'cifar10', 'cifar100', 'imagenet'
+data_choice = 'imagenet'  # Options: 'cifar10', 'cifar100', 'imagenet'
 model_choice = 'resnet'  # Options: 'vit' or 'resnet'
 
 # Model loading configuration

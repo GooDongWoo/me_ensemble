@@ -1,0 +1,6 @@
+70996: cifar100 0-8
+70997: imagenet 0-8
+71022: imagenet 8
+71029: cifar10 9
+71030: cifar100 9
+71031: imagenet 9
