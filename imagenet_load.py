@@ -12,15 +12,11 @@ class ImageNetdataset(torch.utils.data.Dataset):
     def __init__(self, train_mode=True, transforms=None):
         try: imagenet_dataset = datasets.load_dataset("imagenet-1k",cache_dir='./data/imagenet')
         except: raise Exception("Please download the dataset in ./data/imagenet")
-        if train_mode:
-            self.dataset = imagenet_dataset["train"]
-        else:
-            self.dataset = imagenet_dataset["validation"]
-        self.transforms = None
-        if transforms:
-            self.transforms = transforms
+        
+        if train_mode:self.dataset = imagenet_dataset["train"]
+        else:self.dataset = imagenet_dataset["validation"]
+        self.transforms = transforms
         self.targets = self.dataset['label']
-
         
     def __getitem__(self, index):
         image = self.dataset[index]["image"]
@@ -29,6 +25,7 @@ class ImageNetdataset(torch.utils.data.Dataset):
         if self.transforms:
             current = self.transforms(current)
         return current, label
+    
     def __len__(self):
         return len(self.dataset)
 

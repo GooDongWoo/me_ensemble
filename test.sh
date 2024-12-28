@@ -7,9 +7,11 @@
 #SBATCH -p batch_eebme_ugrad
 #SBATCH -t 6-0
 #SBATCH -o logs/slurm-%A.out
-##SBATCH -w moana-r4
+#SBATCH -w moana-r4
 
 which python
 hostname
-python mevit_train.py
+python me_train.py
+
 exit 0
+#dos2unix test.sh

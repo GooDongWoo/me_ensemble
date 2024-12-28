@@ -26,7 +26,7 @@ dataset_outdim = {'cifar10': 10,'cifar100': 100,'imagenet': 1000}
 # Configuration Parameters
 # -----------------------------------------------------------------------------
 # Model and training setup
-unfreeze_ees_list = [7]  # List of exit layers to unfreeze
+unfreeze_ees_list = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]  # List of exit layers to unfreeze
 batch_size = 1024
 data_choice = 'imagenet'  # Options: 'cifar10', 'cifar100', 'imagenet'
 model_choice = 'resnet'  # Options: 'vit' or 'resnet'
@@ -122,16 +122,19 @@ class Trainer:
 
     def _freeze_layers(self):
         """Freeze all layers except specified exits and classifiers."""
+        # self.model이 DDP 모델이므로 module을 통해 원본 모델에 접근
+        model = self.model.module
+        
         # Freeze all parameters first
-        for param in self.model.parameters():
+        for param in model.parameters():
             param.requires_grad = False
         
         # Unfreeze specified exits and their classifiers
         for idx in self.unfreeze_ees:
             if model_choice == 'vit':
-                for param in self.model.classifiers[idx].parameters():
+                for param in model.classifiers[idx].parameters():
                     param.requires_grad = True
-            for param in self.model.ees[idx].parameters():
+            for param in model.ees[idx].parameters():
                 param.requires_grad = True
 
     def _save_specifications(self):
@@ -143,7 +146,7 @@ class Trainer:
             f'Total Epochs: {self.num_epochs}\n'
             f'Load Pretrained: {self.isload}\n'
             f'Checkpoint Path: {self.path_chckpnt}\n'
-            f'Exit Loss Weights: {self.model.getELW()}\n'
+            f'Exit Loss Weights: {self.model.module.getELW()}\n'  # module을 통해 접근
         )
         with open(f"{self.path}/spec.txt", "w") as file:
             file.write(spec_txt)
@@ -358,103 +361,92 @@ class DDPTrainer(Trainer):
         if self.rank == 0:
             super()._log_metrics(losses, accuracies, epoch, mode)
 
-def train_ddp(rank, world_size, data_choice, model_choice, unfreeze_ees_list, **kwargs):
-    """각 프로세스에서 실행될 훈련 함수"""
-    setup(rank, world_size)
-    
-    # 데이터 로더 초기화 (DistributedSampler 사용)
-    dloaders = Dloaders(data_choice=data_choice, batch_size=batch_size, IMG_SIZE=IMG_SIZE)
-    train_sampler = DistributedSampler(dloaders.train_dataset)
-    train_loader = DataLoader(
-        dloaders.train_dataset, 
-        batch_size=batch_size,
-        num_workers=8,  # CPU 코어 수에 맞게 조정
-        pin_memory=True,
-        sampler=train_sampler,
-        prefetch_factor=2,
-        persistent_workers=True
-    )
-    
-    # 테스트 데이터 로더는 rank 0만 사용
-    test_loader = DataLoader(
-        dloaders.test_dataset,
-        batch_size=batch_size,
-        num_workers=8,
-        pin_memory=True
-    ) if rank == 0 else None
-    
-    print(f"Initializing base {model_choice} model...")
-    if model_choice == 'resnet':
-        # ResNet 모델 초기화
-        ptd_model = models.resnet101(weights=models.ResNet101_Weights.DEFAULT)
-        
-        # ImageNet이 아닌 경우 출력층 수정
-        if data_choice != 'imagenet':
-            ptd_model.fc = nn.Linear(ptd_model.fc.in_features, dataset_outdim[data_choice])
-            # 사전 학습된 가중치 로드
-            ptd_model.load_state_dict(torch.load(backbone_path))
-        
-        ptd_model = ptd_model.to(device)
-        
-    elif model_choice == 'vit':
-        # ViT 모델 초기화
-        ptd_model = models.vit_b_16(weights=models.ViT_B_16_Weights.DEFAULT)
-        
-        # ImageNet이 아닌 경우 출력층 수정
-        if data_choice != 'imagenet':
-            ptd_model.heads.head = nn.Linear(ptd_model.heads.head.in_features, dataset_outdim[data_choice])
-            # 사전 학습된 가중치 로드
-            ptd_model.load_state_dict(torch.load(backbone_path))
-            
-        ptd_model = ptd_model.to(device)
-    
-    for i in unfreeze_ees_list:
-        # 모델 초기화
-        if model_choice == 'resnet':
-            model = MultiExitResNet(ptd_model, num_classes=dataset_outdim[data_choice])
-        else:
-            model = MultiExitViT(ptd_model, num_classes=dataset_outdim[data_choice])
-            
-        # optimizer 초기화 (DDP 모델 파라미터 사용)
-        optimizer = optim.Adam(model.parameters(), lr=start_lr, weight_decay=weight_decay)
-        
-        # training params 설정
-        training_params = {
-            'num_epochs': max_epochs,
-            'loss_func': nn.CrossEntropyLoss(),
-            'optimizer': optimizer,
-            'data_choice': data_choice,
-            'model_choice': model_choice,
-            'train_dl': train_loader,
-            'val_dl': test_loader,
-            'lr_scheduler': ReduceLROnPlateau(optimizer, mode='min', 
-                                            factor=lr_decrease_factor, 
-                                            patience=lr_decrease_patience,
-                                            verbose=rank==0),
-            'isload': mevit_isload,
-            'path_chckpnt': f'models/{model_choice}/{data_choice}/{i}/best_model.pth',
-            'classifier_wise': classifier_wise,
-            'unfreeze_ees': [i],
-            'early_stop_patience': early_stop_patience
-        }
-        
-        # DDP Trainer 초기화 및 학습
-        trainer = DDPTrainer(model=model, params=training_params, rank=rank, world_size=world_size)
-        trainer.train()
-        
-        if rank == 0:
-            print(f"Completed training for exit layer {i}")
-    
-    cleanup()
-
 if __name__ == '__main__':
-    # GPU 개수 확인
-    world_size = torch.cuda.device_count()
-    
-    # DDP로 학습 시작
-    mp.spawn(
-        train_ddp,
-        args=(world_size, data_choice, model_choice, unfreeze_ees_list),
-        nprocs=world_size,
-        join=True
-    )
+    # torchrun을 위한 환경 변수에서 rank와 world_size를 가져옴
+    def get_rank_and_world_size():
+        local_rank = int(os.environ.get("LOCAL_RANK", 0))
+        world_size = int(os.environ.get("WORLD_SIZE", 1))
+        return local_rank, world_size
+
+    def main():
+        local_rank, world_size = get_rank_and_world_size()
+        
+        # DDP 초기화
+        dist.init_process_group(backend="nccl")
+        torch.cuda.set_device(local_rank)
+        
+        # 데이터 로더 초기화
+        dloaders = Dloaders(data_choice=data_choice, batch_size=batch_size, IMG_SIZE=IMG_SIZE)
+        train_sampler = DistributedSampler(dloaders.train_dataset)
+        train_loader = DataLoader(
+            dloaders.train_dataset, 
+            batch_size=batch_size,
+            num_workers=6,
+            pin_memory=True,
+            sampler=train_sampler,
+            prefetch_factor=2,
+            persistent_workers=True
+        )
+        
+        # 테스트 데이터 로더는 rank 0만 사용
+        test_loader = DataLoader(
+            dloaders.test_dataset,
+            batch_size=batch_size,
+            num_workers=6,
+            pin_memory=True
+        ) if local_rank == 0 else None
+
+        # 모델 초기화
+        print(f"Initializing base {model_choice} model...")
+        if model_choice == 'resnet':
+            ptd_model = models.resnet101(weights=models.ResNet101_Weights.DEFAULT)
+            if data_choice != 'imagenet':
+                ptd_model.fc = nn.Linear(ptd_model.fc.in_features, dataset_outdim[data_choice])
+                ptd_model.load_state_dict(torch.load(backbone_path))
+        elif model_choice == 'vit':
+            ptd_model = models.vit_b_16(weights=models.ViT_B_16_Weights.DEFAULT)
+            if data_choice != 'imagenet':
+                ptd_model.heads.head = nn.Linear(ptd_model.heads.head.in_features, dataset_outdim[data_choice])
+                ptd_model.load_state_dict(torch.load(backbone_path))
+        
+        ptd_model = ptd_model.to(local_rank)
+
+        for i in unfreeze_ees_list:
+            if model_choice == 'resnet':
+                model = MultiExitResNet(ptd_model, num_classes=dataset_outdim[data_choice])
+            else:
+                model = MultiExitViT(ptd_model, num_classes=dataset_outdim[data_choice])
+            
+            model = DDP(model.to(local_rank), device_ids=[local_rank])
+            
+            optimizer = optim.Adam(model.parameters(), lr=start_lr, weight_decay=weight_decay)
+            
+            training_params = {
+                'num_epochs': max_epochs,
+                'loss_func': nn.CrossEntropyLoss(),
+                'optimizer': optimizer,
+                'data_choice': data_choice,
+                'model_choice': model_choice,
+                'train_dl': train_loader,
+                'val_dl': test_loader,
+                'lr_scheduler': ReduceLROnPlateau(optimizer, mode='min', 
+                                                factor=lr_decrease_factor, 
+                                                patience=lr_decrease_patience,
+                                                verbose=local_rank==0),
+                'isload': mevit_isload,
+                'path_chckpnt': f'models/{model_choice}/{data_choice}/{i}/best_model.pth',
+                'classifier_wise': classifier_wise,
+                'unfreeze_ees': [i],
+                'early_stop_patience': early_stop_patience
+            }
+            
+            trainer = DDPTrainer(model=model, params=training_params, 
+                               rank=local_rank, world_size=world_size)
+            trainer.train()
+            
+            if local_rank == 0:
+                print(f"Completed training for exit layer {i}")
+        
+        cleanup()
+
+    main()
