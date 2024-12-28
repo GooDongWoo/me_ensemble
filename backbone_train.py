@@ -15,7 +15,7 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 dataset_name = {'cifar10':datasets.CIFAR10, 'cifar100':datasets.CIFAR100,'imagenet':None}
 dataset_outdim = {'cifar10':10, 'cifar100':100,'imagenet':1000}
 ##############################################################
-batch_size = 32
+batch_size = 1024
 data_choice='cifar100'
 model_choice = 'resnet' # ['vit', 'resnet']
 isload=False

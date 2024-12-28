@@ -23,6 +23,6 @@ hostname
 nvidia-smi
 
 # DDP로 학습 실행
-srun python mevit_train.py
+srun python ddp_me_train.py
 
 exit 0
