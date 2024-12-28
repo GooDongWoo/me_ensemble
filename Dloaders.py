@@ -12,9 +12,9 @@ class Dloaders:
             import imagenet_load
             
             self.train_dataset = imagenet_load.IMAGENET_DATASET_TRAIN
-            self.train_loader = DataLoader(self.train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
+            self.train_loader = DataLoader(self.train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=True, prefetch_factor=2, persistent_workers=True)
             self.test_dataset = imagenet_load.IMAGENET_DATASET_TEST
-            self.test_loader = DataLoader(self.test_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
+            self.test_loader = DataLoader(self.test_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=True, prefetch_factor=2, persistent_workers=True)
         else:
             transform = transforms.Compose([transforms.Resize(IMG_SIZE),
                 transforms.ToTensor(),

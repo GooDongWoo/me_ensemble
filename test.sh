@@ -1,12 +1,13 @@
 #!/usr/bin/bash
 
-#SBATCH -J ME_ViT
+#SBATCH -J ME_ENSEMBLE
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-gpu=8
-#SBATCH --mem-per-gpu=28G
+#SBATCH --mem-per-gpu=32G
 #SBATCH -p batch_eebme_ugrad
-#SBATCH -t 1-0
+#SBATCH -t 6-0
 #SBATCH -o logs/slurm-%A.out
+##SBATCH -w moana-r4
 
 which python
 hostname
