@@ -43,8 +43,7 @@ def parse_args(mydefault):
     parser = argparse.ArgumentParser(description='Training script for multi-exit neural networks')
     
     # Add argument for unfreeze_ees_list
-    parser.add_argument(
-        '--unfreeze-exits',
+    parser.add_argument('-u', '--unfreeze-exits',
         type=str,
         default=None,
         help='List of exit layers to unfreeze. Can be specified in multiple formats:\n'\
