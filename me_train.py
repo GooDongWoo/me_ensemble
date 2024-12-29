@@ -13,6 +13,7 @@ from torch.utils.tensorboard import SummaryWriter
 from me_models import MultiExitViT
 from me_ResNet import MultiExitResNet
 from Dloaders import Dloaders
+from myArgparser import parse_args
 
 # Device configuration
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -52,6 +53,13 @@ ee_list = [0,1,2,3,4,5,6,7,8,9]  # List of all possible exits
 exit_loss_weights = [1,1,1,1,1,1,1,1,1,1,1]  # Weight for each exit's loss
 classifier_wise = True  # Whether to train specific classifiers only
 unfreeze_ees = []  # Exits to unfreeze during training
+
+# -----------------------------------------------------------------------------
+# Argument Parsing
+# -----------------------------------------------------------------------------
+args = parse_args(unfreeze_ees_list)
+if args.unfreeze_exits is not None:
+    unfreeze_ees_list = args.unfreeze_exits
 
 # -----------------------------------------------------------------------------
 # Trainer Class Definition
