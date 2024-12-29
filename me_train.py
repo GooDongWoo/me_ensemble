@@ -26,9 +26,9 @@ dataset_outdim = {'cifar10': 10,'cifar100': 100,'imagenet': 1000}
 # Configuration Parameters
 # -----------------------------------------------------------------------------
 # Model and training setup
-unfreeze_ees_list = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]  # List of exit layers to unfreeze [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+unfreeze_ees_list = [4]  # List of exit layers to unfreeze [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 batch_size = 1024
-data_choice = 'cifar100'  # Options: 'cifar10', 'cifar100', 'imagenet'
+data_choice = 'imagenet'  # Options: 'cifar10', 'cifar100', 'imagenet'
 model_choice = 'resnet'  # Options: 'vit' or 'resnet'
 num_workers = 6
 
@@ -76,8 +76,12 @@ class Trainer:
         
         # Training parameters
         self.num_epochs = params['num_epochs']; self.loss_func = params["loss_func"]
-        self.opt = params["optimizer"]; self.train_dl = params["train_dl"]
-        self.val_dl = params["val_dl"]; self.lr_scheduler = params["lr_scheduler"]
+        self.opt = params["optimizer"]; self.lr_scheduler = params["lr_scheduler"]
+        
+        # Data loaders
+        self.dloaders = params["dloaders"]
+        self.train_dl, self.val_dl = self.dloaders.get_loaders()
+        self.train_dataset, self.val_dataset = self.dloaders.get_datasets()
         
         # Model configuration
         self.data_choice = params["data_choice"]; self.model_choice = params["model_choice"]
@@ -205,7 +209,7 @@ class Trainer:
         """
         running_loss = [0.0] * self.model.exit_num
         running_metric = [0.0] * self.model.exit_num
-        len_data = len(data_loader.dataset)
+        len_data = len(self.train_dataset) if mode == "train" else len(self.val_dataset)
         elws = self.model.getELW()
 
         # Process each batch with progress bar
@@ -317,10 +321,13 @@ class Trainer:
 # Main Execution
 # -----------------------------------------------------------------------------
 if __name__ == '__main__':
+    print("data_choice: ", data_choice)
+    print("model_choice: ", model_choice)
+    print("unfreeze_ees_list: ", unfreeze_ees_list)
+    
     # 1. Data Loader 초기화
     print("Initializing data loaders...")
     dloaders = Dloaders(data_choice=data_choice, batch_size=batch_size, IMG_SIZE=IMG_SIZE, num_workers=num_workers)
-    train_loader, test_loader = dloaders.get_loaders()
 
     # 2. 기본 모델 초기화 (ResNet 또는 ViT)
     print(f"Initializing base {model_choice} model...")
@@ -375,8 +382,7 @@ if __name__ == '__main__':
         training_params = {
             'num_epochs': max_epochs,'loss_func': criterion,
             'optimizer': optimizer,'data_choice': data_choice,
-            'model_choice': model_choice,'train_dl': train_loader,
-            'val_dl': test_loader,'lr_scheduler': lr_scheduler,
+            'model_choice': model_choice,'dloaders': dloaders, 'lr_scheduler': lr_scheduler,
             'isload': mevit_isload,'path_chckpnt': mevit_pretrained_path,
             'classifier_wise': classifier_wise,'unfreeze_ees': [i],  # 특정 exit layer만 학습
             'early_stop_patience': early_stop_patience

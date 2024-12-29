@@ -7,9 +7,52 @@ import os
 from tqdm import tqdm
 import tarfile
 from torchvision import datasets, transforms
-from torch.utils.data import DataLoader
-from torch.utils.data import DataLoader
 
+def convert_arrow_to_tars(arrow_dataset, output_dir, samples_per_tar=1000, start_from=0):
+    """Arrow 데이터셋을 TAR 파일들로 변환"""
+    os.makedirs(output_dir, exist_ok=True)
+    
+    for shard_idx in tqdm(range(start_from, len(arrow_dataset), samples_per_tar)):
+        tar_filename = os.path.join(output_dir, f'shard_{shard_idx:06d}.tar')
+        
+        # 이미 존재하는 파일은 건너뛰기
+        if os.path.exists(tar_filename):
+            continue
+            
+        with tarfile.open(tar_filename, 'w') as tar:
+            for idx in range(shard_idx, min(shard_idx + samples_per_tar, len(arrow_dataset))):
+                try:
+                    sample = arrow_dataset[idx]
+                    img = sample["image"]
+                    label = sample["label"]
+                    
+                    # RGBA나 다른 모드를 RGB로 변환
+                    if img.mode != 'RGB':
+                        print(f"Converting {img.mode} image to RGB at index {idx}")
+                        img = img.convert('RGB')
+                    
+                    # 이미지를 바이트로 변환
+                    img_byte = io.BytesIO()
+                    img.save(img_byte, format='JPEG')
+                    img_byte = img_byte.getvalue()
+                    
+                    # TAR에 추가
+                    img_info = tarfile.TarInfo(f'{idx:08d}.jpg')
+                    img_info.size = len(img_byte)
+                    tar.addfile(img_info, io.BytesIO(img_byte))
+                    
+                    # 레이블 추가
+                    label_byte = str(label).encode('utf-8')
+                    label_info = tarfile.TarInfo(f'{idx:08d}.cls')
+                    label_info.size = len(label_byte)
+                    tar.addfile(label_info, io.BytesIO(label_byte))
+                except Exception as e:
+                    print(f"Error processing image {idx}: {e}")
+                    continue
+    
+    return None
+
+'''
 def convert_arrow_to_tars(arrow_dataset, output_dir, samples_per_tar=1000):
     """Arrow 데이터셋을 TAR 파일들로 변환"""
     os.makedirs(output_dir, exist_ok=True)
@@ -38,15 +81,21 @@ def convert_arrow_to_tars(arrow_dataset, output_dir, samples_per_tar=1000):
                 label_info = tarfile.TarInfo(f'{idx:08d}.cls')
                 label_info.size = len(label_byte)
                 tar.addfile(label_info, io.BytesIO(label_byte))
+'''
 
 class WebDatasetImageNet:
     def __init__(self, data_dir, batch_size, num_workers, transforms=None):
         self.transforms = transforms
         
+        urls = []
+        for i in range(0, 1281000 + 1, 1000):  # start_shard부터 end_shard까지 1000 단위로
+            shard_path = f"{data_dir}/shard_{i:06d}.tar"
+            if os.path.exists(shard_path):
+                urls.append(shard_path)
         # WebDataset 파이프라인 생성
         dataset = (
-            wds.WebDataset(f"{data_dir}/shard_*.tar")
-            .decode('rgb')
+            wds.WebDataset(urls)
+            .decode('pil')
             .to_tuple('jpg', 'cls')
             .map_tuple(self.process_image, lambda x: int(x))
         )
@@ -100,6 +149,9 @@ class Dloaders:
                 num_workers=num_workers,
                 transforms=imagenet_load.trans
             ).loader
+            
+            self.train_dataset = imagenet_load.IMAGENET_DATASET_TRAIN.dataset
+            self.test_dataset = imagenet_load.IMAGENET_DATASET_TEST.dataset
         else:
             transform = transforms.Compose([transforms.Resize(IMG_SIZE),
                 transforms.ToTensor(),
@@ -116,3 +168,12 @@ class Dloaders:
     
     def get_datasets(self):
         return self.train_dataset,  self.test_dataset
+
+if __name__ == '__main__':
+    import imagenet_load
+    # Arrow 데이터셋을 TAR로 변환 (처음 한 번만 실행)
+    train_output_dir = './data/imagenet_tars/train'
+    test_output_dir = './data/imagenet_tars/val'
+    start_shard = 1159
+    samples_per_tar=1000
+    convert_arrow_to_tars(imagenet_load.IMAGENET_DATASET_TRAIN.dataset, train_output_dir, samples_per_tar=1000, start_from=0)
