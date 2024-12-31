@@ -13,8 +13,7 @@ dataset_outdim = {'cifar10':10, 'cifar100':100,'imagenet':1000}
 
 ##############################################################
 ################ 0. Hyperparameters ##########################
-unfreeze_ees_list=[0,1,2,3,4,5,6,7,8,9]
-data_choice='imagenet'
+data_choice='cifar100'
 model_choice = 'resnet' # ['vit', 'resnet']
 # Path to the saved model
 ee0_path=f'models/{model_choice}/{data_choice}/0/best_model.pth'
@@ -32,16 +31,14 @@ if model_choice == 'vit':
     # Load the pretrained ViT model from the saved file
     ptd_model = models.vit_b_16(weights=None)
     ptd_model.heads.head = nn.Linear(ptd_model.heads.head.in_features, dataset_outdim[data_choice])  # Ensure output matches the number of classes
+    # Load model weights
+    new_model = MultiExitViT(base_model=ptd_model,num_classes=dataset_outdim[data_choice])
 elif model_choice == 'resnet':
     # Load the pretrained ResNet model from the saved file
     ptd_model = models.resnet101()
     ptd_model.fc = nn.Linear(ptd_model.fc.in_features, dataset_outdim[data_choice])
-# Load model weights
-##############################################################
-if model_choice == 'vit':
-    new_model = MultiExitViT(base_model=ptd_model,num_classes=dataset_outdim[data_choice])
-elif model_choice == 'resnet':
-    new_model = MultiExitResNet(base_model=ptd_model,num_classes=dataset_outdim[data_choice])
+    # Load model weights
+    new_model = MultiExitResNet(base_model=ptd_model,num_classes=dataset_outdim[data_choice])    
 ##############################################################
 paths=[ee0_path,ee1_path,ee2_path,ee3_path,ee4_path,ee5_path,ee6_path,ee7_path,ee8_path,ee9_path]
 ##############################################################
@@ -64,3 +61,4 @@ for i in range(1,10):
 ##############################################################
 # Save the model
 torch.save(new_model.state_dict(), f'models/{model_choice}/{data_choice}/integrated_ee.pth')
+print('Integrated model saved successfully!')

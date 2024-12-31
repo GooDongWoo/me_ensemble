@@ -49,18 +49,13 @@ if __name__=='__main__':
     ################ 0. Hyperparameters ##########################
     ##############################################################
     batch_size = 1024
-    data_choice='imagenet'
+    data_choice='cifar100'
     model_choice='resnet' #vit or resnet
-    mevit_isload=True
-    mevit_pretrained_path=f'models/{model_choice}/{data_choice}/integrated_ee.pth'
     max_epochs = 500  # Set your max epochs
 
-    backbone_path=f'models/{model_choice}/{data_choice}/{model_choice}_{data_choice}_backbone.pth'
     start_lr=1e-3
     weight_decay=1e-2
 
-    ee_list=[0,1,2,3,4,5,6,7,8,9]#exit list ex) [0,1,2,3,4,5,6,7,8,9]
-    exit_loss_weights=[1,1,1,1,1,1,1,1,1,1,1]#exit마다 가중치
     exit_num=11
     
     lr_decrease_factor = 0.6
@@ -89,3 +84,4 @@ if __name__=='__main__':
 
     # save temperature scaling values
     torch.save(mat_scalers, scaler_path)
+    print(f"Matrix scaling values saved to {scaler_path}")

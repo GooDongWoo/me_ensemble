@@ -4,7 +4,9 @@ import torch.nn as nn
 from torchvision import datasets, models
 from tqdm import tqdm  # Importing tqdm for progress bar
 from me_models import MultiExitViT
+from me_ResNet import MultiExitResNet
 from Dloaders import Dloaders
+
 IMG_SIZE = 224
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 dataset_name = {'cifar10':datasets.CIFAR10, 'cifar100':datasets.CIFAR100,'imagenet':None}
@@ -12,7 +14,7 @@ dataset_outdim = {'cifar10':10, 'cifar100':100,'imagenet':1000}
 ##############################################################
 ################ 0. Hyperparameters ##########################
 batch_size = 1024
-data_choice = 'cifar10'
+data_choice = 'cifar100'
 model_choice = 'resnet'  # ['vit', 'resnet']
 mevit_pretrained_path=f'models/{model_choice}/{data_choice}/integrated_ee.pth'
 
@@ -26,25 +28,31 @@ if __name__ == '__main__':
     train_loader,test_loader = dloaders.get_loaders()
 
     # Load the pretrained ViT model from the saved file
-    pretrained_vit = models.vit_b_16(weights=None)
-    pretrained_vit.heads.head = nn.Linear(pretrained_vit.heads.head.in_features, dataset_outdim[data_choice])  # Ensure output matches the number of classes
-
-    # Load model weights
-    pretrained_vit.load_state_dict(torch.load(backbone_path))
-    pretrained_vit = pretrained_vit.to(device)
+    if model_choice == 'vit':
+        # Load the pretrained ViT model from the saved file
+        ptd_model = models.vit_b_16(weights=None)
+        ptd_model.heads.head = nn.Linear(ptd_model.heads.head.in_features, dataset_outdim[data_choice])  # Ensure output matches the number of classes
+        # Load model weights
+        new_model = MultiExitViT(base_model=ptd_model,num_classes=dataset_outdim[data_choice])
+    elif model_choice == 'resnet':
+        # Load the pretrained ResNet model from the saved file
+        ptd_model = models.resnet101()
+        ptd_model.fc = nn.Linear(ptd_model.fc.in_features, dataset_outdim[data_choice])
+        # Load model weights
+        new_model = MultiExitResNet(base_model=ptd_model,num_classes=dataset_outdim[data_choice])    
     
-    model = MultiExitViT(pretrained_vit, num_classes=dataset_outdim[data_choice], ee_list=ee_list, exit_loss_weights=exit_loss_weights).to(device)
-    model.load_state_dict(torch.load(mevit_pretrained_path))    
+    new_model.load_state_dict(torch.load(mevit_pretrained_path))
+    new_model.to(device)
     
-    model.eval()
-    running_metric = [0.0] * model.exit_num
+    new_model.eval()
+    running_metric = [0.0] * new_model.exit_num
     len_data = len(test_loader.dataset)
 
     with torch.no_grad():
         with tqdm(test_loader, unit="batch", leave=False) as t:
             for xb, yb in t:
                 xb, yb = xb.to(device), yb.to(device)
-                output_list = model(xb)
+                output_list = new_model(xb)
                 accs = [output.argmax(1).eq(yb).sum().item() for output in output_list]
                 running_metric = [sum(x) for x in zip(running_metric, accs)]
                 
