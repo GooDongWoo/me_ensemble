@@ -11,7 +11,14 @@
 
 which python
 hostname
-python me_train.py
+
+#python backbone_train.py
+#python me_train.py -u "[0,1,2,3,4,5,6,7,8,9]"
+#python integrate_ee.py
+#python me_test.py
+#python make_last_cache.py
+python matrix_scaling.py
+python temperature_scaling.py
 
 exit 0
 #dos2unix test.sh

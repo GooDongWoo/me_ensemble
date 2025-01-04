@@ -58,7 +58,7 @@ if __name__=='__main__':
     ################ 0. Hyperparameters ##########################
     ##############################################################
     batch_size = 1024
-    data_choice='cifar100'
+    data_choice='imagenet'
     model_choice='resnet'   # resnet, vit
     max_epochs = 2000  # Set your max epochs
 
@@ -74,13 +74,9 @@ if __name__=='__main__':
     writer_path = f'./runs/{data_choice}/ms/'
     scaler_path = f'models/{model_choice}/{data_choice}/temperature_scaler.pth'
     ##############################################################
-    dloaders=Dloaders(data_choice=data_choice,batch_size=batch_size,IMG_SIZE=IMG_SIZE)
-
     # load cached output tensor
-    output_tensor = torch.load(cache_file_path).to(device)
-    _, test_dataset = dloaders.get_datasets()
-    labels_list = test_dataset.targets
-    labels=torch.tensor(labels_list).to(device)
+    cache_dict = torch.load(cache_file_path)
+    output_tensor , labels = cache_dict['output_tensor'].to(device), cache_dict['labels'].to(device)
 
     # Temperature Scaling
     temperature_scalers = [TemperatureScaling().to(device) for _ in range(exit_num)]

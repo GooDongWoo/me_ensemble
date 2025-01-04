@@ -14,7 +14,7 @@ dataset_outdim = {'cifar10':10, 'cifar100':100,'imagenet':1000}
 ##############################################################
 ################ 0. Hyperparameters ##########################
 batch_size = 1024
-data_choice = 'cifar100'
+data_choice = 'imagenet'
 model_choice = 'resnet'  # ['vit', 'resnet']
 mevit_pretrained_path=f'models/{model_choice}/{data_choice}/integrated_ee.pth'
 
@@ -26,7 +26,8 @@ exit_loss_weights = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]  # exit마다 가중치
 if __name__ == '__main__':
     dloaders=Dloaders(data_choice=data_choice,batch_size=batch_size,IMG_SIZE=IMG_SIZE)
     train_loader,test_loader = dloaders.get_loaders()
-
+    train_dataset, test_dataset = dloaders.get_datasets()
+    
     # Load the pretrained ViT model from the saved file
     if model_choice == 'vit':
         # Load the pretrained ViT model from the saved file
@@ -46,7 +47,7 @@ if __name__ == '__main__':
     
     new_model.eval()
     running_metric = [0.0] * new_model.exit_num
-    len_data = len(test_loader.dataset)
+    len_data = len(test_dataset)
 
     with torch.no_grad():
         with tqdm(test_loader, unit="batch", leave=False) as t:

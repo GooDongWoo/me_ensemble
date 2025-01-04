@@ -13,7 +13,7 @@ dataset_outdim = {'cifar10':10, 'cifar100':100,'imagenet':1000}
 
 ##############################################################
 ################ 0. Hyperparameters ##########################
-data_choice='cifar100'
+data_choice='imagenet'
 model_choice = 'resnet' # ['vit', 'resnet']
 # Path to the saved model
 ee0_path=f'models/{model_choice}/{data_choice}/0/best_model.pth'

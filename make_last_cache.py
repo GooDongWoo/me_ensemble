@@ -17,7 +17,7 @@ if __name__ == '__main__':
     ################ 0. Hyperparameters ##########################
     ##############################################################
     batch_size = 1024
-    data_choice='cifar100'
+    data_choice='imagenet'
     model_choice = 'resnet' # ['vit', 'resnet']
     mevit_pretrained_path=f"models/{model_choice}/{data_choice}/integrated_ee.pth"
 
@@ -66,7 +66,8 @@ if __name__ == '__main__':
     # Concatenate the collected outputs and labels
     output_tensor = torch.tensor(np.array([torch.cat(output_list_list[i]).to('cpu') for i in range(exit_num)])).to(device)
     labels = torch.cat(labels_list).to(device)
+    cacahe_dict = {'output_tensor':output_tensor,'labels':labels}
     # 리스트를 바이너리 파일로 저장하기
-    torch.save(output_tensor, cache_file_path)
+    torch.save(cacahe_dict, cache_file_path)
     
     print('Cache file saved to', cache_file_path)

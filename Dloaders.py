@@ -84,7 +84,7 @@ def convert_arrow_to_tars(arrow_dataset, output_dir, samples_per_tar=1000):
 '''
 
 class WebDatasetImageNet:
-    def __init__(self, data_dir, batch_size, num_workers, transforms=None):
+    def __init__(self, data_dir, batch_size, num_workers, transforms=None, shuffle=True):
         self.transforms = transforms
         
         urls = []
@@ -94,7 +94,7 @@ class WebDatasetImageNet:
                 urls.append(shard_path)
         # WebDataset 파이프라인 생성
         dataset = (
-            wds.WebDataset(urls)
+            wds.WebDataset(urls, shardshuffle=shuffle)
             .decode('pil')
             .to_tuple('jpg', 'cls')
             .map_tuple(self.process_image, lambda x: int(x))
@@ -105,7 +105,7 @@ class WebDatasetImageNet:
             dataset.batched(batch_size),
             batch_size=None,
             num_workers=num_workers,
-            pin_memory=True
+            pin_memory=True,
         )
     
     def process_image(self, img):
@@ -140,18 +140,20 @@ class Dloaders:
                 train_output_dir,
                 batch_size=batch_size,
                 num_workers=num_workers,
-                transforms=imagenet_load.trans
+                transforms=imagenet_load.trans,
+                shuffle=True
             ).loader
             
             self.test_loader = WebDatasetImageNet(
                 test_output_dir,
                 batch_size=batch_size,
                 num_workers=num_workers,
-                transforms=imagenet_load.trans
+                transforms=imagenet_load.trans,
+                shuffle=False
             ).loader
             
-            self.train_dataset = imagenet_load.IMAGENET_DATASET_TRAIN.dataset
-            self.test_dataset = imagenet_load.IMAGENET_DATASET_TEST.dataset
+            self.train_dataset = imagenet_load.IMAGENET_DATASET_TRAIN
+            self.test_dataset = imagenet_load.IMAGENET_DATASET_TEST
         else:
             transform = transforms.Compose([transforms.Resize(IMG_SIZE),
                 transforms.ToTensor(),
