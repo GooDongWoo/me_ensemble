@@ -59,5 +59,5 @@ if __name__ == '__main__':
                 
                 t.set_postfix(accuracy=[round(100 * acc / len(xb),3) for acc in accs])
 
-    running_acc = [100 * metric / len_data for metric in running_metric]
+    running_acc = [round(100 * metric / len_data, 5) for metric in running_metric]
     print(f'total Test Accuracy: {running_acc}')
