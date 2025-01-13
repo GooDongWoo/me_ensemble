@@ -4,3 +4,4 @@ data
 models
 secret.py
 *.pt
+tmp.ipynb
